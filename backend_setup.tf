@@ -34,12 +34,17 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "state_encryption"
 resource "aws_s3_bucket_lifecycle_configuration" "state_lifecycle" {
   bucket = aws_s3_bucket.terraform_state.id
   rule {
-    id     = "archive_old_state"
+    id     = "cleanup_and_archive"
     status = "Enabled"
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
     transition {
       days          = 30
       storage_class = "STANDARD_IA"
     }
+    filter {}
   }
 }
 
