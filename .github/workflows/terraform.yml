@@ -5,18 +5,29 @@ on:
     branches: [ "main" ]
   pull_request:
 
+# 1. ADD THIS: OIDC requires these permissions to exchange tokens
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   terraform:
     name: "Terraform"
     runs-on: ubuntu-latest
+    # 2. REMOVED: No more static AWS secrets here!
     env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: "eu-central-1"
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      # 3. ADD THIS: The OIDC handshake step
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::266859253671:role/github-actions-terraform-role
+          aws-region: eu-central-1
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -27,7 +38,7 @@ jobs:
         with:
           directory: .
           framework: terraform
-          soft_fail: false # Pipeline will STOP if security fails
+          soft_fail: false 
 
       # Phase 2: Initialization
       - name: Terraform Init
@@ -36,8 +47,8 @@ jobs:
       # Phase 3: The Plan (Review before you build)
       - name: Terraform Plan
         id: plan
-        run: terraform plan -no-color
         if: github.event_name == 'pull_request'
+        run: terraform plan -no-color
 
       # Phase 4: The Build (Only runs on push to main)
       - name: Terraform Apply
